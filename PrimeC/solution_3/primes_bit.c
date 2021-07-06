@@ -1,16 +1,24 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <time.h>
 #include <math.h>
 
 #define BITONE 1U
 #define BITZERO 0U
 
-
 #define ON BITZERO
 #define OFF BITONE
 
-#define TYPE unsigned int
+#ifdef COMPILE_64_BIT
+#define TYPE uint64_t
+#define MASK 63U
+#define SHIFT 6U
+#else
+#define TYPE uint32_t
+#define MASK 31U 
+#define SHIFT 5U
+#endif
 
 struct sieve_state {
   TYPE *bit_array;
@@ -20,7 +28,7 @@ struct sieve_state {
 struct sieve_state *create_sieve(int limit) {
   struct sieve_state *sieve_state=malloc(sizeof *sieve_state);
 
-  sieve_state->bit_array=calloc(limit + 1, sizeof(TYPE) );
+  sieve_state->bit_array=calloc(limit/sizeof(TYPE)+1,sizeof(TYPE));
   sieve_state->limit=limit;
   return sieve_state;
 }
@@ -31,11 +39,15 @@ void delete_sieve(struct sieve_state *sieve_state) {
 }
 
 void setBit(struct sieve_state *sieve_state,unsigned int index) {
-    sieve_state->bit_array[index] = BITONE;
-    }
+    unsigned int word_offset = index >> SHIFT;                // 1 word = 2ˆ5 = 32 bit, so shift 5, much faster than /32
+    unsigned int offset  = index & MASK;                      // use & (and) for remainder, faster than modulus of /32
+    sieve_state->bit_array[word_offset] |= (1 << offset);
+}
 
 TYPE getBit (struct sieve_state *sieve_state,unsigned int index) {
-    return sieve_state->bit_array[index];
+    unsigned int word_offset = index >> SHIFT;  
+    unsigned int offset  = index & MASK;
+    return sieve_state->bit_array[word_offset] & (1 << offset);     // use a mask to only get the bit at position bitOffset.
 }
 
 void run_sieve(struct sieve_state *sieve_state) {
@@ -146,7 +158,7 @@ void print_results (
         );
 
 	printf("\n");
-	printf("fvbakel_Cint;%d;%f;1;algorithm=base,faithful=yes,bits=%lu\n", passes, duration,8*sizeof(char));
+	printf("fvbakel_Cbit;%d;%f;1;algorithm=base,faithful=yes,bits=%lu\n", passes, duration,1LU);
 }
 
 int main(int argc, char **argv) {

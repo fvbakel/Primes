@@ -3,18 +3,24 @@
 #include <time.h>
 #include <math.h>
 
-#define ON '\0'
-#define OFF '\1'
+#define BITONE '\1'
+#define BITZERO '\0'
+
+
+#define ON BITZERO
+#define OFF BITONE
+
+#define TYPE char
 
 struct sieve_state {
-  char *bit_array;
+  TYPE *bit_array;
   unsigned int limit;
 };
 
 struct sieve_state *create_sieve(int limit) {
   struct sieve_state *sieve_state=malloc(sizeof *sieve_state);
 
-  sieve_state->bit_array=(char *) calloc(limit + 1, sizeof(char) ); //malloc((limit + 1) * sizeof(char)); 
+  sieve_state->bit_array=calloc(limit + 1, sizeof(TYPE) );
   sieve_state->limit=limit;
   return sieve_state;
 }
@@ -24,6 +30,14 @@ void delete_sieve(struct sieve_state *sieve_state) {
   free(sieve_state);
 }
 
+void setBit(struct sieve_state *sieve_state,unsigned int index) {
+    sieve_state->bit_array[index] = BITONE;
+    }
+
+TYPE getBit (struct sieve_state *sieve_state,unsigned int index) {
+    return sieve_state->bit_array[index];
+}
+
 void run_sieve(struct sieve_state *sieve_state) {
     unsigned int factor = 3;
     unsigned int q=(unsigned int)sqrt(sieve_state->limit);
@@ -31,7 +45,7 @@ void run_sieve(struct sieve_state *sieve_state) {
     while (factor <= q) {
         // search next
         for (unsigned int num = factor; num <= sieve_state->limit; num+=2) {
-            if (sieve_state->bit_array[num] == ON ) {
+            if ( getBit(sieve_state,num) == ON ) {
                 factor = num;
                 break;
             }
@@ -39,7 +53,7 @@ void run_sieve(struct sieve_state *sieve_state) {
         
         // crossout
         for (unsigned int num = factor * factor; num <= sieve_state->limit; num += factor * 2) {
-            sieve_state->bit_array[num] = OFF;
+            setBit(sieve_state,num);
         }    
         
         factor += 2;
@@ -49,7 +63,7 @@ void run_sieve(struct sieve_state *sieve_state) {
 void print_primes (struct sieve_state *sieve_state) {
     printf("%i,",2);
     for (unsigned int i = 3; i <= sieve_state->limit; i+=2) {
-        if (sieve_state->bit_array[i] == ON ) {
+        if (getBit(sieve_state,i) == ON ) {
             printf("%i,",i);    
         }
     }
@@ -59,7 +73,7 @@ void print_primes (struct sieve_state *sieve_state) {
 unsigned int count_primes (struct sieve_state *sieve_state) {
     unsigned int count = 1;
     for (unsigned int i = 3; i <= sieve_state->limit; i+=2) {
-        if (sieve_state->bit_array[i] == ON ) {
+        if (getBit(sieve_state,i) == ON ) {
             count++;   
         }
     }
@@ -110,15 +124,15 @@ char* validate_result(unsigned int limit, int count) {
 }
 
 void print_results (    
-        struct  sieve_state *sieve_state,
-        char    show_result,
-        double  duration,
-        int     passes) 
+        struct          sieve_state *sieve_state,
+        unsigned int    show_result,
+        double          duration,
+        int             passes) 
 {
     int     count = count_primes(sieve_state);
     char*   valid = validate_result(sieve_state->limit,count);
 
-    if (show_result == ON) {
+    if (show_result == 1U) {
         print_primes(sieve_state);
     }
 
@@ -135,13 +149,10 @@ void print_results (
 	printf("fvbakel_Cchar;%d;%f;1;algorithm=base,faithful=yes,bits=%lu\n", passes, duration,8*sizeof(char));
 }
 
-
-
-
 int main(int argc, char **argv) {
     unsigned int        limit     = 1000000;
     double              maxtime     = 5.;
-    char                show_result = OFF;
+    unsigned int        show_result = 0;
     
     struct sieve_state *sieve_state;
     struct timespec     start,now;
