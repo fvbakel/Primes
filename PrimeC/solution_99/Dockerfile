@@ -1,7 +1,6 @@
-FROM alpine:3.13
-# FROM debian:buster-slim
+FROM debian:buster-slim
 
-RUN apk add --update build-base
+RUN apt-get update && apt-get -y install build-essential
 
 WORKDIR /opt/app
 
