@@ -66,27 +66,34 @@ void repeatWords2end (
     }
 }
 
-TYPE getWord(struct sieve_state *sieve_state,unsigned int word_offset) {
-    return sieve_state->bit_array[word_offset];
-}
-
 void setBit(struct sieve_state *sieve_state,unsigned int index) {
-    unsigned int word_offset = index >> SHIFT;                // 1 word = 2ˆ5 = 32 bit, so shift 5, much faster than /32
-    unsigned int offset  = index & MASK;                      // use & (and) for remainder, faster than modulus of /32
+    unsigned int word_offset = index >> SHIFT;
+    unsigned int offset  = index & MASK;
     sieve_state->bit_array[word_offset] |= (1 << offset);
 }
 
 TYPE getBit (struct sieve_state *sieve_state,unsigned int index) {
     unsigned int word_offset = index >> SHIFT;  
     unsigned int offset  = index & MASK;
-    return sieve_state->bit_array[word_offset] & (1 << offset);     // use a mask to only get the bit at position bitOffset.
+    return sieve_state->bit_array[word_offset] & (1 << offset);
 }
+/*
+    Purpose:
+    This function calculates a segment of the sieve.
 
+    The calculations starts are start_nr under the assumption that smaller
+    numbers are already calculated
+
+    Up to and including the end_nr are crossed out.
+
+    If stop_prime is specified, the calculation stops after the
+    crossout for this prime is completed
+*/
 void run_sieve_segment ( 
     struct sieve_state *sieve_state,
     unsigned int start_nr,
     unsigned int end_nr,
-    unsigned int stop_prime
+    unsigned int stop_prime 
     ) {
 
     unsigned int q=(unsigned int)sqrt(end_nr);
@@ -105,18 +112,52 @@ void run_sieve_segment (
             setBit(sieve_state,num);
         }
         
-        if (factor == stop_prime) break;
+        if (factor == stop_prime) {
+            break;
+        }
 
         factor += 2;
     }
 
 }
 
+/*
+    Purpose:
+    The procedure below runs the sieve in a segmented algorithm
+
+    This algorithm is based on the fact that the crossout pattern repeats
+    at the product of the found primes. So for example
+
+    If we have crossed out 3 then the words in the sieve will have the pattern 
+    below:
+    WORD0,WORD1,WORD2,WORD3,WORD1,WORD2,WORD3,WORD1, etc
+
+    After 5 is crossed out we get a simular repeating pattern, 
+    but this time after 3 * 5 = 10 WORDS.
+
+    Note that we can exclude the primefactor 2 because we are considering
+    already only odd numbers.
+
+    This algorithm makes use of this repeating pattern. If we know the 
+    repeating pattern then we can copy that pattern in one step until the
+    end of the sieve size, instead of one by one.
+
+    This has some constrains:
+    - it is only efficient if it affects every word. So only primes are considered
+      that are smaller than half the word size. This means that in the crossout step
+      one would always affect every word
+    - The copy of the pattern has to occur often enough to get benifit from the 
+      repeating pattern calculation. There for this code considers a repeating pattern
+      that is less than 1% of the total sieve size, so it can be copied 99 times. 
+      And accounts a reduction in bit calculations for low primes with 99%
+*/
 void run_sieve(struct sieve_state *sieve_state) {
     unsigned int prime_word_cpy;
     unsigned int prime_product = 1;
     unsigned int next_prime_product = 0;
-    unsigned int max_product = (sieve_state->limit >> 2) / 100; // 1% of the total justifies the 
+    // < 1% of the total justifies the extra effort that is needed 
+    // for the repeating word calculation
+    unsigned int max_product = (sieve_state->limit >> 2) / 100; 
 
     // STEP 1:
     // First calculate all the primes in the first half word
@@ -127,7 +168,6 @@ void run_sieve(struct sieve_state *sieve_state) {
     for (unsigned int num = 3; num <= 8*sizeof(TYPE); num += 2) {
         if (getBit(sieve_state,num) == ON ) {
             next_prime_product = prime_product * num;
-            //printf("Found prime: %d: next_prime_product= %d \n",num,next_prime_product);
             if (next_prime_product < max_product) {
                 prime_product = next_prime_product;
                 prime_word_cpy = num;
@@ -135,12 +175,8 @@ void run_sieve(struct sieve_state *sieve_state) {
         }
     }
 
-   // printf("Found prime to copy: %d found prime product: %d, max product: %d\n", prime_word_cpy, prime_product, max_product);
-
     // STEP 3
     // crossout from begin to product for up to found prime
-   // prime_product = 3 * 5 * 7 * 11 *13;
-   // prime_word_cpy =13;
     run_sieve_segment(sieve_state,3,2*prime_product*8*sizeof(TYPE), prime_word_cpy );
 
     // STEP 4
