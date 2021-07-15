@@ -41,37 +41,22 @@ void delete_sieve(struct sieve_state *sieve_state) {
   free(sieve_state);
 }
 
-void setWord(struct sieve_state *sieve_state,unsigned int word_offset, TYPE word_value) {
-    sieve_state->bit_array[word_offset] = word_value;
-}
-
-void setWords(struct sieve_state *sieve_state,unsigned int word_offset, TYPE *word_values, unsigned int size) {
-    memcpy(&(sieve_state->bit_array[word_offset]), word_values, size * sizeof(TYPE));
-}
-
 void repeatWords2end (
     struct sieve_state *sieve_state,
     unsigned int word_offset, 
     TYPE *word_values, 
-    unsigned int size,
-    unsigned int end
+    unsigned int size
     ) {
-    //size_t mem_size = size * sizeof(TYPE);
+    size_t mem_size = size * sizeof(TYPE);
     unsigned int start_at = word_offset;
-    if (end == 0) {
-        end = sieve_state->nr_of_words;
-    }
 
-  /*  while ((start_at += size) < sieve_state->nr_of_words) {
+    while ( (start_at + size ) < sieve_state->nr_of_words ) {
         memcpy(&(sieve_state->bit_array[start_at]), word_values, mem_size);
-        start_at += size;
+        start_at += (size );
     }
-    */
-
-    // so in the end this mass copy does not work, 
-    // we have to do those one by one
+    
     int i =0;
-    while (start_at < end) {
+    while (start_at < sieve_state->nr_of_words) {
         sieve_state->bit_array[start_at] = word_values[i];
         start_at++;
         i++;
@@ -138,7 +123,7 @@ void run_sieve(struct sieve_state *sieve_state) {
     run_sieve_segment(sieve_state,3,8*sizeof(TYPE),0);
 
     // STEP 2:
-    // find the optimal product
+    // find the optimal product of primes for repeat pattern
     for (unsigned int num = 3; num <= 8*sizeof(TYPE); num += 2) {
         if (getBit(sieve_state,num) == ON ) {
             next_prime_product = prime_product * num;
@@ -153,7 +138,9 @@ void run_sieve(struct sieve_state *sieve_state) {
    // printf("Found prime to copy: %d found prime product: %d, max product: %d\n", prime_word_cpy, prime_product, max_product);
 
     // STEP 3
-    // crossout from begin to product for upto found prime
+    // crossout from begin to product for up to found prime
+   // prime_product = 3 * 5 * 7 * 11 *13;
+   // prime_word_cpy =13;
     run_sieve_segment(sieve_state,3,2*prime_product*8*sizeof(TYPE), prime_word_cpy );
 
     // STEP 4
@@ -163,8 +150,7 @@ void run_sieve(struct sieve_state *sieve_state) {
         sieve_state,
         prime_product+1, 
         &(sieve_state->bit_array[1]), 
-        prime_product,
-        0
+        prime_product
     );
 
     // STEP 5
