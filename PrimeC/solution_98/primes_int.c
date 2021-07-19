@@ -44,18 +44,13 @@ void run_sieve(struct sieve_state *sieve_state) {
 
     while (factor <= q) {
         // search next
-        for (unsigned int num = factor; num <= sieve_state->limit; num+=2) {
-            if ( getBit(sieve_state,num) == ON ) {
-                factor = num;
-                break;
+        if ( getBit(sieve_state,factor) == ON ) {
+            // crossout
+            for (unsigned int num = factor * factor; num <= sieve_state->limit; num += factor * 2) {
+                setBit(sieve_state,num);
             }
-        }
-        
-        // crossout
-        for (unsigned int num = factor * factor; num <= sieve_state->limit; num += factor * 2) {
-            setBit(sieve_state,num);
-        }    
-        
+        }  
+       
         factor += 2;
     }
 }
@@ -146,7 +141,7 @@ void print_results (
         );
 
 	printf("\n");
-	printf("fvbakel_Cint;%d;%f;1;algorithm=base,faithful=yes,bits=%lu\n", passes, duration,8*sizeof(char));
+	printf("fvbakel_Cint;%d;%f;1;algorithm=base,faithful=yes,bits=%lu\n", passes, duration,8*sizeof(TYPE));
 }
 
 int main(int argc, char **argv) {

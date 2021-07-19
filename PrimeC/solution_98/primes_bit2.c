@@ -52,28 +52,21 @@ TYPE getBit (struct sieve_state *sieve_state,unsigned int index) {
 
 void run_sieve(struct sieve_state *sieve_state) {
     unsigned int factor_index = 1U;
-    
+    unsigned int prime;
     unsigned int max_index=sieve_state->limit>>1U;
     unsigned int q=(unsigned int)sqrt(sieve_state->limit);
-    unsigned int prime;
     unsigned int q_index=q>>1U;
   
-
     while (factor_index <= q_index) {
         // search next
-        for (unsigned int num = factor_index; num <= max_index; num++) {
-            if ( getBit(sieve_state,num) == ON ) {
-                factor_index = num;
-                break;
-            }
+        if ( getBit(sieve_state,factor_index) == ON ) {
+            prime = (factor_index << 1U)+1U;
+            // crossout
+            for (unsigned int num = (prime * prime)>>1U ; num <= max_index; num += prime) {
+                setBit(sieve_state,num);
+            }  
         }
-        prime = (factor_index << 1U)+1U;
 
-        // crossout
-        for (unsigned int num = (prime * prime)>>1U ; num <= max_index; num += prime) {
-            setBit(sieve_state,num);
-        }    
-        
         factor_index++;
     }
 }
@@ -166,7 +159,7 @@ void print_results (
         );
 
 	printf("\n");
-	printf("fvbakel_Cbit;%d;%f;1;algorithm=base,faithful=yes,bits=%lu\n", passes, duration,1LU);
+	printf("fvbakel_Cbit2;%d;%f;1;algorithm=base,faithful=yes,bits=%lu\n", passes, duration,1LU);
 }
 
 int main(int argc, char **argv) {

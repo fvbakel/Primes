@@ -1,7 +1,6 @@
-FROM alpine:3.13
-# FROM debian:buster-slim
+FROM ubuntu:18.04
 
-RUN apk add --update build-base
+RUN apt-get update && apt-get -y install build-essential
 
 WORKDIR /opt/app
 
@@ -14,5 +13,3 @@ RUN chmod +x compile.sh run.sh
 RUN ./compile.sh
 
 ENTRYPOINT [ "./run.sh" ]
-
-
