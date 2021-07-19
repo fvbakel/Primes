@@ -5,11 +5,9 @@
 #include <math.h>
 #include <string.h>
 
-#define BITONE 1U
 #define BITZERO 0U
 
 #define ON BITZERO
-#define OFF BITONE
 
 #ifdef COMPILE_64_BIT
 #define TYPE uint64_t
@@ -30,9 +28,9 @@ struct sieve_state {
 struct sieve_state *create_sieve(int limit) {
   struct sieve_state *sieve_state=malloc(sizeof *sieve_state);
 
-  sieve_state->bit_array=calloc(limit/sizeof(TYPE)+1,sizeof(TYPE));
+  sieve_state->nr_of_words=(limit / 8 * sizeof(TYPE)) + 1;
+  sieve_state->bit_array=calloc(sieve_state->nr_of_words,sizeof(TYPE));
   sieve_state->limit=limit;
-  sieve_state->nr_of_words=limit/sizeof(TYPE)+1;
   return sieve_state;
 }
 
@@ -69,13 +67,13 @@ void repeatWords2end (
 void setBit(struct sieve_state *sieve_state,unsigned int index) {
     unsigned int word_offset = index >> SHIFT;
     unsigned int offset  = index & MASK;
-    sieve_state->bit_array[word_offset] |= (1 << offset);
+    sieve_state->bit_array[word_offset] |= (TYPE) 1 << offset;
 }
 
 TYPE getBit (struct sieve_state *sieve_state,unsigned int index) {
     unsigned int word_offset = index >> SHIFT;  
     unsigned int offset  = index & MASK;
-    return sieve_state->bit_array[word_offset] & (1 << offset);
+    return sieve_state->bit_array[word_offset] &  (TYPE) 1 << offset;
 }
 /*
     Purpose:
@@ -123,33 +121,9 @@ void run_sieve_segment (
 
 /*
     Purpose:
-    The procedure below runs the sieve in a segmented algorithm
-
-    This algorithm is based on the fact that the crossout pattern repeats
-    at the product of the found primes. So for example
-
-    If we have crossed out 3 then the words in the sieve will have the pattern 
-    below:
-    WORD0,WORD1,WORD2,WORD3,WORD1,WORD2,WORD3,WORD1, etc
-
-    After 5 is crossed out we get a simular repeating pattern, 
-    but this time after 3 * 5 = 10 WORDS.
-
-    Note that we can exclude the primefactor 2 because we are considering
-    already only odd numbers.
-
-    This algorithm makes use of this repeating pattern. If we know the 
-    repeating pattern then we can copy that pattern in one step until the
-    end of the sieve size, instead of one by one.
-
-    This has some constrains:
-    - it is only efficient if it affects every word. So only primes are considered
-      that are smaller than half the word size. This means that in the crossout step
-      one would always affect every word
-    - The copy of the pattern has to occur often enough to get benifit from the 
-      repeating pattern calculation. There for this code considers a repeating pattern
-      that is less than 1% of the total sieve size, so it can be copied 99 times. 
-      And accounts a reduction in bit calculations for low primes with 99%
+    The procedure below runs the sieve in a segmented algorithm.
+    
+    See details described in README.md
 */
 void run_sieve(struct sieve_state *sieve_state) {
     unsigned int prime_word_cpy;
@@ -181,7 +155,7 @@ void run_sieve(struct sieve_state *sieve_state) {
 
     // STEP 4
     // now we can do a word crossout for the first few primes that
-    // are determined by the login above
+    // are determined by the logic above
     repeatWords2end (
         sieve_state,
         prime_product+1, 
@@ -280,7 +254,7 @@ void print_results (
         );
 
 	printf("\n");
-	printf("fvbakel_Cwords;%d;%f;1;algorithm=base,faithful=yes,bits=%lu\n", passes, duration,1LU);
+	printf("fvbakel_Cwords;%d;%f;1;algorithm=other,faithful=yes,bits=%lu\n", passes, duration,1LU);
 }
 
 int main(int argc, char **argv) {
