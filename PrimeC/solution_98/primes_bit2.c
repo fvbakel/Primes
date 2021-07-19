@@ -53,7 +53,7 @@ TYPE getBit (struct sieve_state *sieve_state,unsigned int index) {
 void run_sieve(struct sieve_state *sieve_state) {
     unsigned int factor_index = 1U;
     unsigned int prime;
-    unsigned int max_index=sieve_state->limit>>1U;
+    unsigned int max_index=(sieve_state->limit>>1U) - ((sieve_state->limit & 1U) == 1U ?  0U:1U);;
     unsigned int q=(unsigned int)sqrt(sieve_state->limit);
     unsigned int q_index=q>>1U;
   
@@ -72,7 +72,7 @@ void run_sieve(struct sieve_state *sieve_state) {
 }
 
 void print_primes (struct sieve_state *sieve_state) {
-    unsigned int max_index=sieve_state->limit>>1U;
+    unsigned int max_index=(sieve_state->limit>>1U) - ((sieve_state->limit & 1U) == 1U ?  0U:1U);
     printf("%i,",2);
     for (unsigned int i = 1; i <= max_index; i++) {
         if (getBit(sieve_state,i) == ON ) {
@@ -84,7 +84,7 @@ void print_primes (struct sieve_state *sieve_state) {
 
 unsigned int count_primes (struct sieve_state *sieve_state) {
     unsigned int count = 1;
-    unsigned int max_index=sieve_state->limit>>1U;
+    unsigned int max_index=(sieve_state->limit>>1U) - ((sieve_state->limit & 1U) == 1U ?  0U:1U);
     for (unsigned int i = 1; i <=max_index; i++) {
         if (getBit(sieve_state,i) == ON ) {
             count++;   
