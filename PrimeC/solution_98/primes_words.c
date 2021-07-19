@@ -28,7 +28,7 @@ struct sieve_state {
 struct sieve_state *create_sieve(int limit) {
   struct sieve_state *sieve_state=malloc(sizeof *sieve_state);
 
-  sieve_state->nr_of_words=(limit / 8 * sizeof(TYPE)) + 1;
+  sieve_state->nr_of_words=(limit >> SHIFT) + 1;
   sieve_state->bit_array=calloc(sieve_state->nr_of_words,sizeof(TYPE));
   sieve_state->limit=limit;
   return sieve_state;
