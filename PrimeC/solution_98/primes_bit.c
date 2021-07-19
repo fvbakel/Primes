@@ -4,11 +4,9 @@
 #include <time.h>
 #include <math.h>
 
-#define BITONE 1U
 #define BITZERO 0U
 
 #define ON BITZERO
-#define OFF BITONE
 
 #ifdef COMPILE_64_BIT
 #define TYPE uint64_t
@@ -28,7 +26,7 @@ struct sieve_state {
 struct sieve_state *create_sieve(int limit) {
   struct sieve_state *sieve_state=malloc(sizeof *sieve_state);
 
-  sieve_state->bit_array=calloc(limit/sizeof(TYPE)+1,sizeof(TYPE));
+  sieve_state->bit_array=calloc((limit / 8 * sizeof(TYPE))+1,sizeof(TYPE));
   sieve_state->limit=limit;
   return sieve_state;
 }
@@ -41,13 +39,13 @@ void delete_sieve(struct sieve_state *sieve_state) {
 void setBit(struct sieve_state *sieve_state,unsigned int index) {
     unsigned int word_offset = index >> SHIFT;                // 1 word = 2ˆ5 = 32 bit, so shift 5, much faster than /32
     unsigned int offset  = index & MASK;                      // use & (and) for remainder, faster than modulus of /32
-    sieve_state->bit_array[word_offset] |= (1 << offset);
+    sieve_state->bit_array[word_offset] |=  (TYPE) 1 << offset;
 }
 
 TYPE getBit (struct sieve_state *sieve_state,unsigned int index) {
     unsigned int word_offset = index >> SHIFT;  
     unsigned int offset  = index & MASK;
-    return sieve_state->bit_array[word_offset] & (1 << offset);     // use a mask to only get the bit at position bitOffset.
+    return sieve_state->bit_array[word_offset] & (TYPE) 1 << offset;     // use a mask to only get the bit at position bitOffset.
 }
 
 void run_sieve(struct sieve_state *sieve_state) {
@@ -188,5 +186,6 @@ int main(int argc, char **argv) {
 
         delete_sieve(sieve_state);
     }
+
     return 0;
 }
