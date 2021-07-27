@@ -280,7 +280,7 @@ void print_results (
         struct          sieve_state *sieve_state,
         unsigned int    show_result,
         double          duration,
-        int             passes) cp
+        int             passes)
 {
     int     count = count_primes(sieve_state);
     char*   valid = validate_result(sieve_state->limit,count);

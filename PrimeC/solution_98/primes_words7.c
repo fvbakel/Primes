@@ -23,6 +23,8 @@
 #define SHIFTSIZE 2U 
 #endif
 
+const TYPE offset_mask[] = {1,2,4,8,16,32,64,128,256,512,1024,2048,4096,8192,16384,32768,65536,131072,262144,524288,1048576,2097152,4194304,8388608,16777216,33554432,67108864,134217728,268435456,536870912,1073741824,2147483648};
+
 struct sieve_state {
   TYPE *bit_array;
   unsigned int limit;
@@ -74,13 +76,13 @@ void repeat_words_2_max (
 void setBit(struct sieve_state *sieve_state,unsigned int index) {
     unsigned int word_offset = index >> SHIFT;                // 1 word = 2ˆ5 = 32 bit, so shift 5, much faster than /32
     unsigned int offset  = index & MASK;                      // use & (and) for remainder, faster than modulus of /32
-    sieve_state->bit_array[word_offset] |=  (TYPE) 1 << offset;
+    sieve_state->bit_array[word_offset] |=  offset_mask[offset]; // (TYPE) 1 << offset;
 }
 
 TYPE getBit (struct sieve_state *sieve_state,unsigned int index) {
     unsigned int word_offset = index >> SHIFT;  
     unsigned int offset  = index & MASK;
-    return sieve_state->bit_array[word_offset] & (TYPE) 1 << offset;     // use a mask to only get the bit at position bitOffset.
+    return sieve_state->bit_array[word_offset] & offset_mask[offset];     // use a mask to only get the bit at position bitOffset.
 }
 /*
     Purpose:
