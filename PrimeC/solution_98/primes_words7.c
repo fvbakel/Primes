@@ -84,6 +84,28 @@ TYPE getBit (struct sieve_state *sieve_state,unsigned int index) {
     unsigned int offset  = index & MASK;
     return sieve_state->bit_array[word_offset] & offset_mask[offset];     // use a mask to only get the bit at position bitOffset.
 }
+
+void print_primes (struct sieve_state *sieve_state) {
+    unsigned int max_index=(sieve_state->limit>>1U) - ((sieve_state->limit & 1U) == 1U ?  0U:1U);
+    printf("%i,",2);
+    for (unsigned int i = 1; i <= max_index; i++) {
+        if (getBit(sieve_state,i) == ON ) {
+            printf("%i,",(i<<1U) +1U);    
+        }
+    }
+    printf("\n");
+}
+
+void print_int_as_bit(unsigned int value) {
+    for (int i=0;i<32;i++) {
+        if ( (value & offset_mask[i]) > 0U) {
+            printf("1");
+        } else {
+            printf("0");
+        }
+    }
+}
+
 /*
     Purpose:
     This function calculates a segment of the sieve.
@@ -108,14 +130,87 @@ void run_sieve_segment(
     unsigned int q=(unsigned int)sqrt(end_nr);
     unsigned int q_index=q>>1U;
 
+    unsigned int start_index;
+    unsigned int current_index;
+    unsigned int start_word;
+    unsigned int current_word;
+    unsigned int max_word = max_index >> SHIFT;
+    unsigned int current_mask;
+    unsigned int first_mask;
+    unsigned int offset;
+    unsigned int grow;
+
     while (factor_index <= q_index) {
         // search next
         if ( getBit(sieve_state,factor_index) == ON ) {
             prime = (factor_index << 1U)+1U;
+
+            // calculate the first mask
+            start_index = ((prime * prime)>>1U);
+            current_word = start_index >> SHIFT;
+            start_word = start_index >> SHIFT;
+
+            // crossout to next word
+            unsigned int num2 = start_index;
+            while (current_word == start_word) {
+                setBit(sieve_state,num2);
+                num2 += prime;
+                current_word = num2 >> SHIFT;
+            }
+
+            start_word = current_word;
+            current_index = num2;
+            offset = current_index & MASK;
+            
+           // current_word = current_index >> SHIFT;
+
+       //     printf("start_word=%u\n",start_word);
+       //     printf("num2=%u\n",num2);
+
+            while (current_word <= (start_word+prime) && current_word <= max_word ) {
+       //         printf("current_index=%u\n",current_index);
+       //         printf("offset=%u\n",offset);
+                if (prime < 32U) {
+                    // fill the rest of the mask
+                    // multiple crossouts on each word
+                    current_mask = 0U;
+                    grow = 0;
+                    while (offset < 32U) {
+                    /*    if (prime==3) {
+                            printf("offset=%u\n",offset);
+                        }
+                        */
+                        current_mask |= offset_mask[offset];
+                        grow +=prime;
+                        offset += prime;
+                    }
+                    current_index += grow;
+                } else {
+                    current_mask = 0U | offset_mask[offset];
+                    current_index += prime;
+                }
+
+           //     printf("for prime=%u, start at word:%u, current_mask=%u\n",prime,current_word,current_mask);
+           //     print_int_as_bit(current_mask);
+           //     printf("\n");
+                // now apply this mask to all words with steps of the prime
+                while (current_word <= max_word) {
+                    sieve_state->bit_array[current_word] |=  current_mask;
+                    current_word += prime;
+                }
+              //  print_primes(sieve_state);
+                offset = current_index & MASK;
+                current_word = current_index >> SHIFT;
+            }
+
+            
+
             // crossout
-            for (unsigned int num = ((prime * prime)>>1U) ; num <= max_index; num += prime) {
+      /*      for (unsigned int num = start_index ; num <= max_index; num += prime) {
                 setBit(sieve_state,num);
             }  
+*/
+
             if (factor_index == stop_prime_idx) {
                 break;
             }
@@ -124,6 +219,8 @@ void run_sieve_segment(
         factor_index++;
     }
 }
+
+
 
 /*
     Purpose:
@@ -194,17 +291,6 @@ void run_sieve(struct sieve_state *sieve_state) {
         // crossout the remaining
         run_sieve_segment(sieve_state,prime_word_cpy_idx[j-1] +1,sieve_state->limit,0);
     }
-}
-
-void print_primes (struct sieve_state *sieve_state) {
-    unsigned int max_index=(sieve_state->limit>>1U) - ((sieve_state->limit & 1U) == 1U ?  0U:1U);
-    printf("%i,",2);
-    for (unsigned int i = 1; i <= max_index; i++) {
-        if (getBit(sieve_state,i) == ON ) {
-            printf("%i,",(i<<1U) +1U);    
-        }
-    }
-    printf("\n");
 }
 
 unsigned int count_primes (struct sieve_state *sieve_state) {
