@@ -14,7 +14,16 @@
 #define SHIFT 5U
 #define MEMSHIFT 6U
 #define SHIFTSIZE 2U 
+// the setting below is about 30,5 kb
+// it is the number of words of 4 bytes each
+// with an L1 cache of 32 kb the max value = 8192
+// however, works best with a smaller value so there is room for others
+// TODO: setting below should be determined automatic during program
+// initialization or compile, don't know how to so set
+// to what works on my hardware
+const unsigned int L1_CACHESIZE=7814;
 
+// the constant below is a cache of all the possible bit masks
 const TYPE offset_mask[] = {1,2,4,8,16,32,64,128,256,512,1024,2048,4096,8192,16384,32768,65536,131072,262144,524288,1048576,2097152,4194304,8388608,16777216,33554432,67108864,134217728,268435456,536870912,1073741824,2147483648};
 
 struct sieve_state {
@@ -30,7 +39,6 @@ static inline struct sieve_state *create_sieve(int limit) {
   sieve_state->nr_of_words=(limit >> MEMSHIFT) + 1;
   sieve_state->bit_array=calloc(sieve_state->nr_of_words,sizeof(TYPE));
   sieve_state->limit=limit;
-  sieve_state->block_of_words=sieve_state->nr_of_words >> 1;
   return sieve_state;
 }
 
@@ -100,6 +108,12 @@ void print_int_as_bit(unsigned int value) {
     }
 }
 
+/*
+    Purpose:
+    Crossout a the sieve block by block, this has a few more calculations
+    but can better use the L1 cache
+
+*/
 static inline void block_cross_out(
     struct sieve_state *sieve_state,
     unsigned int prime,
@@ -132,16 +146,8 @@ static inline void block_cross_out(
     }
     offset = next_start_index & MASK;
 
-    if (prime < 20000) {
-        if (max_word > sieve_state->block_of_words) {
-            max_word_block = sieve_state->block_of_words;
-        }
-
-    /*
-        printf("For prime=%u start processing block 1\n",prime);
-        printf("For prime=%u max_word_block=%u\n",prime,max_word_block);
-        printf("For prime=%u next_start_index=%u\n",prime,next_start_index);
-        */
+    if (max_word > L1_CACHESIZE) {
+        max_word_block = L1_CACHESIZE;
     }
 
     while (1) {
@@ -178,19 +184,11 @@ static inline void block_cross_out(
 
         // now get the first index in the next block
         if (start_word <= max_word_block ) {
-            unsigned int end_of_block_idx = ((max_word_block +1U) * 8 * sizeof(TYPE)) -1;
+            const unsigned int end_of_block_idx = ((max_word_block +1U) * 8 * sizeof(TYPE)) -1;
             next_start_index = start_index + (((end_of_block_idx - start_index) / prime ) +1 ) * prime;
             offset = next_start_index & MASK;
             current_word = next_start_index >> SHIFT;
             start_word = current_word;
-
-         /*   if (prime == 997) {
-                printf("For prime=%u start processing block 2\n",prime);
-                printf("For prime=%u max_word_block=%u\n",prime,max_word_block);
-                printf("For prime=%u end_of_block=%u\n",prime,end_of_block_idx);
-                printf("For prime=%u next_start_index=%u\n",prime,next_start_index);
-            }
-            */
         }
         max_word_block = max_word;
     }
@@ -236,8 +234,6 @@ static inline void run_sieve_segment(
         factor_index++;
     }
 }
-
-
 
 /*
     Purpose:
@@ -400,7 +396,6 @@ int main(int argc, char **argv) {
     struct timespec     start,now;
     double              duration;
     int                 passes      = 0;
-
 
     clock_gettime(CLOCK_MONOTONIC,&start);
 
