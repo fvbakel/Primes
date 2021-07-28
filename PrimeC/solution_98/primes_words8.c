@@ -9,19 +9,11 @@
 
 #define ON BITZERO
 
-#ifdef COMPILE_64_BIT
-#define TYPE uint64_t
-#define MASK 63U
-#define SHIFT 6U
-#define MEMSHIFT 7U
-#define SHIFTSIZE 3U
-#else
 #define TYPE uint32_t
 #define MASK 31U 
 #define SHIFT 5U
 #define MEMSHIFT 6U
 #define SHIFTSIZE 2U 
-#endif
 
 const TYPE offset_mask[] = {1,2,4,8,16,32,64,128,256,512,1024,2048,4096,8192,16384,32768,65536,131072,262144,524288,1048576,2097152,4194304,8388608,16777216,33554432,67108864,134217728,268435456,536870912,1073741824,2147483648};
 
@@ -29,6 +21,7 @@ struct sieve_state {
   TYPE *bit_array;
   unsigned int limit;
   unsigned int nr_of_words;
+  unsigned int block_of_words;
 };
 
 static inline struct sieve_state *create_sieve(int limit) {
@@ -37,6 +30,7 @@ static inline struct sieve_state *create_sieve(int limit) {
   sieve_state->nr_of_words=(limit >> MEMSHIFT) + 1;
   sieve_state->bit_array=calloc(sieve_state->nr_of_words,sizeof(TYPE));
   sieve_state->limit=limit;
+  sieve_state->block_of_words=sieve_state->nr_of_words >> 1;
   return sieve_state;
 }
 
@@ -106,6 +100,103 @@ void print_int_as_bit(unsigned int value) {
     }
 }
 
+static inline void block_cross_out(
+    struct sieve_state *sieve_state,
+    unsigned int prime,
+    unsigned int max_index
+) {
+    unsigned int start_index;
+    unsigned int next_start_index;
+    unsigned int start_word;
+    unsigned int current_word;
+    unsigned int max_word = max_index >> SHIFT;
+    unsigned int max_word_block = max_word;
+    unsigned int current_mask;
+    unsigned int offset;
+    unsigned int grow;
+
+    start_index = ((prime * prime)>>1U);
+    start_word = start_index >> SHIFT;
+    current_word = start_word;
+    next_start_index = start_index;
+
+    if (prime < 32U) {
+        // crossout so we are atleast in the next word
+        while (current_word == start_word) {
+            setBit(sieve_state,next_start_index);
+            next_start_index += prime;
+            current_word = next_start_index >> SHIFT;
+        }
+
+        start_word = current_word;
+    }
+    offset = next_start_index & MASK;
+
+    if (prime < 20000) {
+        if (max_word > sieve_state->block_of_words) {
+            max_word_block = sieve_state->block_of_words;
+        }
+
+    /*
+        printf("For prime=%u start processing block 1\n",prime);
+        printf("For prime=%u max_word_block=%u\n",prime,max_word_block);
+        printf("For prime=%u next_start_index=%u\n",prime,next_start_index);
+        */
+    }
+
+    while (1) {
+
+        // crossout for one block
+        while (current_word <= (start_word+prime) && current_word <= max_word_block ) {
+            if (prime < 32U) {
+                // fill the rest of the mask
+                // multiple crossouts on each word
+                current_mask = 0U;
+                grow = 0U;
+                while (offset < 32U) {
+                    current_mask |= offset_mask[offset];
+                    grow +=prime;
+                    offset += prime;
+                }
+                next_start_index += grow;
+            } else {
+                current_mask = offset_mask[offset];
+                next_start_index += prime;
+            }
+            // now apply this mask to all words with steps of the prime
+            while (current_word <= max_word_block) {
+                sieve_state->bit_array[current_word] |=  current_mask;
+                current_word += prime;
+            }
+            offset = next_start_index & MASK;
+            current_word = next_start_index >> SHIFT;
+        }
+
+        if (max_word_block == max_word) {
+            break;
+        }
+
+        // now get the first index in the next block
+        if (start_word <= max_word_block ) {
+            unsigned int end_of_block_idx = ((max_word_block +1U) * 8 * sizeof(TYPE)) -1;
+            next_start_index = start_index + (((end_of_block_idx - start_index) / prime ) +1 ) * prime;
+            offset = next_start_index & MASK;
+            current_word = next_start_index >> SHIFT;
+            start_word = current_word;
+
+         /*   if (prime == 997) {
+                printf("For prime=%u start processing block 2\n",prime);
+                printf("For prime=%u max_word_block=%u\n",prime,max_word_block);
+                printf("For prime=%u end_of_block=%u\n",prime,end_of_block_idx);
+                printf("For prime=%u next_start_index=%u\n",prime,next_start_index);
+            }
+            */
+        }
+        max_word_block = max_word;
+    }
+}
+
+
 /*
     Purpose:
     This function calculates a segment of the sieve.
@@ -130,63 +221,12 @@ static inline void run_sieve_segment(
     unsigned int q=(unsigned int)sqrt(end_nr);
     unsigned int q_index=q>>1U;
 
-    unsigned int start_index;
-    unsigned int current_index;
-    unsigned int start_word;
-    unsigned int current_word;
-    unsigned int max_word = max_index >> SHIFT;
-    unsigned int current_mask;
-    unsigned int offset;
-    unsigned int grow;
-    unsigned int num2;
-
     while (factor_index <= q_index) {
         // search next
         if ( getBit(sieve_state,factor_index) == ON ) {
             prime = (factor_index << 1U)+1U;
-            start_index = ((prime * prime)>>1U);
 
-            // calculate the first mask
-            start_word = start_index >> SHIFT;
-            current_word = start_word;
-
-            // crossout to next word
-            num2 = start_index;
-            while (current_word == start_word) {
-                setBit(sieve_state,num2);
-                num2 += prime;
-                current_word = num2 >> SHIFT;
-            }
-
-            start_word = current_word;
-            current_index = num2;
-            offset = current_index & MASK;
-
-            while (current_word <= (start_word+prime) && current_word <= max_word ) {
-                if (prime < 32U) {
-                    // fill the rest of the mask
-                    // multiple crossouts on each word
-                    current_mask = 0U;
-                    grow = 0U;
-                    while (offset < 32U) {
-                        current_mask |= offset_mask[offset];
-                        grow +=prime;
-                        offset += prime;
-                    }
-                    current_index += grow;
-                } else {
-                    current_mask = offset_mask[offset];
-                    current_index += prime;
-                }
-                // now apply this mask to all words with steps of the prime
-                while (current_word <= max_word) {
-                    sieve_state->bit_array[current_word] |=  current_mask;
-                    current_word += prime;
-                }
-                offset = current_index & MASK;
-                current_word = current_index >> SHIFT;
-            }
-
+            block_cross_out(sieve_state,prime,max_index);
 
             if (factor_index == stop_prime_idx) {
                 break;
@@ -348,7 +388,7 @@ void print_results (
         );
 
 	printf("\n");
-	printf("fvbakel_Cwords7;%d;%f;1;algorithm=other,faithful=yes,bits=%lu\n", passes, duration,1LU);
+	printf("fvbakel_Cwords8;%d;%f;1;algorithm=other,faithful=yes,bits=%lu\n", passes, duration,1LU);
 }
 
 int main(int argc, char **argv) {
