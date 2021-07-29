@@ -12,4 +12,5 @@ RUN chmod +x compile.sh run.sh
 
 RUN ./compile.sh
 
-ENTRYPOINT [ "./run.sh" ]
+#ENTRYPOINT [ "./run.sh" ]
+ENTRYPOINT [ "bash" ]
