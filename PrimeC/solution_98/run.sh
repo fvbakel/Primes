@@ -1,4 +1,4 @@
 #!/bin/sh
-for x in primes_words primes_words7 primes_words8; do
+for x in primes_words primes_words9 primes_bit2 primes_bit3; do
     ./$x
 done
