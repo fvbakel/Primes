@@ -106,8 +106,9 @@ static inline void bit_cross_out_by_block(
     unsigned int prime;
     unsigned int start_index;
     unsigned int min_index = get_first_index(start_word);
-    unsigned int max_index = get_first_index(end_word);
+    unsigned int max_index = get_last_index(end_word);
     unsigned int min_natural;
+    unsigned int next_natural;
 
     for (unsigned int idx = start_prime_index; idx <=max_prime_index;idx++) {
         if (getBit(sieve_state,idx) == ON) {
@@ -120,7 +121,12 @@ static inline void bit_cross_out_by_block(
                 // continue crossout
                 // calculate new start point
                 min_natural = index_to_natural(min_index);
-                start_index = natural_to_index((((unsigned int) ((min_natural-1) / prime)) +1 ) * prime);
+                next_natural = (((unsigned int) ((min_natural-1) / prime)) +1 ) * prime;
+                if ((next_natural & 1U) !=1U) {
+                    // even number add one more prime
+                    next_natural += prime;
+                }
+                start_index = natural_to_index(next_natural);
             } else {
                 // start index is in this block
                 // no action needed
@@ -290,7 +296,7 @@ double run_timed_sieve(
         clock_gettime(CLOCK_MONOTONIC,&now);
         duration=now.tv_sec+now.tv_nsec*1e-9-start.tv_sec-start.tv_nsec*1e-9;
 
-        if (duration>maxtime) {
+        if (duration>maxtime ) {
             if (print_sumary) {
                 print_results ( sieve_state, show_result, duration, passes);
             }
@@ -338,11 +344,11 @@ int main(int argc, char **argv) {
     
     double              speed;
 
- //   while(1) {
+    while(1) {
         set_word_block_size(limit);
-
+        printf("using blocksize=%u\n",BLOCK_SIZE);
         speed = run_timed_sieve(limit,maxtime,show_result,1);
-//    }
+    }
 
 
 /*
