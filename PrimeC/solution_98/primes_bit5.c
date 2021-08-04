@@ -39,7 +39,7 @@ struct sieve_state {
 static inline struct sieve_state *create_sieve(int limit) {
   struct sieve_state *sieve_state=malloc(sizeof *sieve_state);
 
-  sieve_state->nr_of_words=(limit >> MEMSHIFT) + 1;
+  sieve_state->nr_of_words=(limit >> MEMSHIFT) + (limit & 1) + 2;
   sieve_state->bit_array=calloc(sieve_state->nr_of_words,sizeof(TYPE));
   sieve_state->limit=limit;
   return sieve_state;
@@ -50,27 +50,12 @@ static inline void delete_sieve(struct sieve_state *sieve_state) {
   free(sieve_state);
 }
 
-static inline void setBit(struct sieve_state *sieve_state,unsigned int index) {
-    unsigned int word_offset = index >> SHIFT;                // 1 word = 2ˆ5 = 32 bit, so shift 5, much faster than /32
-    unsigned int offset  = index & MASK;                      // use & (and) for remainder, faster than modulus of /32
-    sieve_state->bit_array[word_offset] |=  offset_mask[offset];
-}
-
-static inline TYPE getBit (struct sieve_state *sieve_state,unsigned int index) {
-    unsigned int word_offset = index >> SHIFT;  
-    unsigned int offset  = index & MASK;
-    return sieve_state->bit_array[word_offset] & offset_mask[offset];     // use a mask to only get the bit at position bitOffset.
-}
-
 static inline unsigned int get_first_index(unsigned int word_index) {
     return word_index * BITS_IN_WORD;
 }
 
 static inline unsigned int get_last_index(unsigned int word_index) {
     return ((word_index +1) * BITS_IN_WORD ) - 1;
-}
-static inline unsigned int index_to_word(unsigned int bit_index) {
-    return bit_index >> SHIFT;
 }
 static inline unsigned int index_to_natural(unsigned int bit_index) {
     return (bit_index << 1) +1 ;
@@ -79,6 +64,34 @@ static inline unsigned int natural_to_index(unsigned int natural) {
     return (natural - 1) >> 1 ;
 }
 
+static inline unsigned int index_to_word_striped(unsigned int bit_index) {
+    return (bit_index >> SHIFT) + (bit_index & 1);
+}
+static inline unsigned int index_to_offset_striped(unsigned int bit_index) {
+    return (bit_index & 63U) >> 1;
+}
+
+static inline unsigned int index_to_word_striped_2(unsigned int bit_index) {
+    return (bit_index >> SHIFT) + (bit_index & 3);
+}
+static inline unsigned int index_to_offset_striped_2(unsigned int bit_index) {
+    return (bit_index & 127U) >> 1;
+}
+
+static inline unsigned int index_to_word(unsigned int bit_index) {
+    return bit_index >> SHIFT;
+}
+static inline unsigned int index_to_offset(unsigned int bit_index) {
+    return bit_index & MASK;
+}
+
+static inline void setBit(struct sieve_state *sieve_state,unsigned int index) {
+    sieve_state->bit_array[index_to_word_striped_2(index)] |=  offset_mask[index_to_offset_striped_2(index)];
+}
+
+static inline TYPE getBit (struct sieve_state *sieve_state,unsigned int index) {
+    return sieve_state->bit_array[index_to_word_striped_2(index)] & offset_mask[index_to_offset_striped_2(index)];
+}
 
 /*
     Purpose:
@@ -272,7 +285,7 @@ void print_results (
         );
 
 	printf("\n");
-	printf("fvbakel_Cbit3;%d;%f;1;algorithm=base,faithful=yes,bits=%lu\n", passes, duration,1LU);
+	printf("fvbakel_Cbit5;%d;%f;1;algorithm=base,faithful=yes,bits=%lu\n", passes, duration,1LU);
 }
 
 double run_timed_sieve(  
@@ -296,7 +309,7 @@ double run_timed_sieve(
         clock_gettime(CLOCK_MONOTONIC,&now);
         duration=now.tv_sec+now.tv_nsec*1e-9-start.tv_sec-start.tv_nsec*1e-9;
 
-        if (duration>maxtime ) {
+        if (duration>maxtime) {
             if (print_sumary) {
                 print_results ( sieve_state, show_result, duration, passes);
             }
@@ -344,11 +357,12 @@ int main(int argc, char **argv) {
     
     double              speed;
 
-    while(1) {
-        set_word_block_size(limit);
-        printf("using blocksize=%u\n",BLOCK_SIZE);
-        speed = run_timed_sieve(limit,maxtime,show_result,1);
-    }
+ //   while(1) {
+    set_word_block_size(limit);
+    //    BLOCK_SIZE = 7999U;
+    printf("using blocksize=%u\n",BLOCK_SIZE);
+    speed = run_timed_sieve(limit,maxtime,show_result,1);
+ //   }
 
     return 0;
 }

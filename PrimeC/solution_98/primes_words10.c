@@ -20,16 +20,56 @@
 // The setting below is set to 16kb
 // this L1 cache size is assumed if it can not be determined
 #define DEFAULT_L1_SIZE (16*1024)
-#define KEEP_FREE 1500U
+#define KEEP_FREE 1500
 //
 // The configuration parameter below determines 
-unsigned int BLOCK_SIZE = ( DEFAULT_L1_SIZE - KEEP_FREE ) / sizeof(TYPE);
+unsigned int BLOCK_SIZE = (DEFAULT_L1_SIZE - KEEP_FREE ) / sizeof(TYPE);
 
 // the const below is to reduce the multiplications
 const unsigned int BITS_IN_WORD=8*sizeof(TYPE);
 
 // the constant below is a cache of all the possible bit masks
 const TYPE offset_mask[] = {1,2,4,8,16,32,64,128,256,512,1024,2048,4096,8192,16384,32768,65536,131072,262144,524288,1048576,2097152,4194304,8388608,16777216,33554432,67108864,134217728,268435456,536870912,1073741824,2147483648};
+
+struct cache {
+  unsigned int *word_index;
+  TYPE *bit_masks_index;
+} CACHE;
+
+static inline unsigned int get_first_index(unsigned int word_index) {
+    return word_index * BITS_IN_WORD;
+}
+
+static inline unsigned int get_last_index(unsigned int word_index) {
+    return ((word_index +1) * BITS_IN_WORD ) - 1;
+}
+static inline unsigned int index_to_word(unsigned int bit_index) {
+    return bit_index >> SHIFT;
+}
+static inline unsigned int index_to_natural(unsigned int bit_index) {
+    return (bit_index << 1) +1 ;
+}
+static inline unsigned int natural_to_index(unsigned int natural) {
+    return (natural - 1) >> 1 ;
+}
+
+
+void fill_cache(int limit) {
+    unsigned int nr_of_words =(limit >> MEMSHIFT) + 1;
+    CACHE.word_index=malloc((limit / 2)  *sizeof(TYPE));
+
+    for (unsigned int i = 0; i< limit/2;i++) {
+        CACHE.word_index[i] = index_to_word(i);
+    }
+
+    CACHE.bit_masks_index=malloc(limit * sizeof(unsigned int));
+
+    for (unsigned int i = 0; i< limit/2;i++) {
+        unsigned int offset  = i & MASK;
+        CACHE.bit_masks_index[i] = offset_mask[offset];
+    }
+  
+}
 
 struct sieve_state {
   TYPE *bit_array;
@@ -80,15 +120,27 @@ static inline void repeat_words_2_max (
 }
 
 static inline void setBit(struct sieve_state *sieve_state,unsigned int index) {
-    unsigned int word_offset = index >> SHIFT;                // 1 word = 2ˆ5 = 32 bit, so shift 5, much faster than /32
-    unsigned int offset  = index & MASK;                      // use & (and) for remainder, faster than modulus of /32
-    sieve_state->bit_array[word_offset] |=  offset_mask[offset];
+    sieve_state->bit_array[CACHE.word_index[index]] |=  CACHE.bit_masks_index[index];
 }
 
 static inline TYPE getBit (struct sieve_state *sieve_state,unsigned int index) {
-    unsigned int word_offset = index >> SHIFT;  
-    unsigned int offset  = index & MASK;
-    return sieve_state->bit_array[word_offset] & offset_mask[offset];     // use a mask to only get the bit at position bitOffset.
+    return sieve_state->bit_array[CACHE.word_index[index]] & CACHE.bit_masks_index[index];
+}
+
+/*
+    Purpose:
+    Crossout bit by bit
+
+*/
+static inline void bit_cross_out(
+    struct sieve_state *sieve_state,
+    unsigned int prime,
+    unsigned int max_index
+) {
+    unsigned int start_index = ((prime * prime)>>1U);
+    for ( unsigned int i = start_index; i <= max_index; i +=prime ) {
+        setBit(sieve_state,i);
+    }
 }
 
 /*
@@ -172,7 +224,6 @@ static inline void block_cross_out(
         max_word_block = max_word;
     }
 }
-
 
 /*
     Purpose:
@@ -373,13 +424,9 @@ void print_results (
         );
 
 	printf("\n");
-	printf("fvbakel_Cwords;%d;%f;1;algorithm=other,faithful=yes,bits=%lu\n", passes, duration,1LU);
+	printf("fvbakel_Cwords10;%d;%f;1;algorithm=other,faithful=yes,bits=%lu,blocksize=%u\n", passes, duration,1LU,BLOCK_SIZE);
 }
 
-/*
-    Purpose:
-    Run the sieve in a loop until the maximum specified time
-*/
 double run_timed_sieve(  
     unsigned int        limit,
     double              maxtime,
@@ -446,12 +493,18 @@ int main(int argc, char **argv) {
     unsigned int        limit       = 1000000;
     double              maxtime     = 5.;
     unsigned int        show_result = 0;
-
+    
     double              speed;
 
-    set_word_block_size(limit);
+    fill_cache(limit);
 
-    speed = run_timed_sieve(limit,maxtime,show_result,1);
+    while(1) {
+        set_word_block_size(limit);
+
+        speed = run_timed_sieve(limit,maxtime,show_result,1);
+    }
+    
+
 
     return 0;
 }

@@ -388,7 +388,7 @@ void print_results (
         );
 
 	printf("\n");
-	printf("fvbakel_Cwords;%d;%f;1;algorithm=other,faithful=yes,bits=%lu,blocksize=%u\n", passes, duration,1LU,BLOCK_SIZE);
+	printf("fvbakel_Cwords09;%d;%f;1;algorithm=other,faithful=yes,bits=%lu,blocksize=%u\n", passes, duration,1LU,BLOCK_SIZE);
 }
 
 double run_timed_sieve(  
