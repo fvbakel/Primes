@@ -75,7 +75,7 @@ static inline unsigned int index_to_word_striped_2(unsigned int bit_index) {
     return (bit_index >> SHIFT) + (bit_index & 3);
 }
 static inline unsigned int index_to_offset_striped_2(unsigned int bit_index) {
-    return (bit_index & 127U) >> 1;
+    return (bit_index & 127U) >> 2;
 }
 
 static inline unsigned int index_to_word(unsigned int bit_index) {
