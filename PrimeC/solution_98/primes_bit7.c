@@ -14,6 +14,24 @@
 #define MEMSHIFT 6U
 #define SHIFTSIZE 2U 
 
+#define NORMAL      0
+#define STRIPED     1
+#define STRIPED_2   2
+#define STRIPED_3   3
+#define MODULO      4
+const char* STORE_MODES[] = {"NORMAL","STRIPED","STRIPED_2","STRIPED_3","MODULO"};
+#ifndef STORE_MODE
+    #define STORE_MODE NORMAL
+#endif
+
+#define BY_4 1
+#define BACK_TO_FRONT_BY_4 2
+#define BACK_TO_FRONT 3
+const char* CROSSOUT_MODES[] = {"NORMAL","BY_4","BACK_TO_FRONT_BY_4","BACK_TO_FRONT"};
+#ifndef CROSSOUT_MODE
+    #define CROSSOUT_MODE BY_4
+#endif
+
 // the const below is to reduce the multiplications
 const unsigned int BITS_IN_WORD=8*sizeof(TYPE);
 
@@ -27,12 +45,18 @@ struct sieve_state {
     unsigned int nr_of_words;
 };
 
+#if STORE_MODE == STRIPED_3
 unsigned int NR_OF_WORDS;
+#endif
+
 static inline struct sieve_state *create_sieve(int limit) {
     struct sieve_state *sieve_state=malloc(sizeof *sieve_state);
     sieve_state->size = limit >>1;
     sieve_state->nr_of_words=(limit >> MEMSHIFT) + 5;
+    #if STORE_MODE == STRIPED_3
     NR_OF_WORDS = sieve_state->nr_of_words;
+    #endif
+
     sieve_state->bit_array=calloc(sieve_state->nr_of_words,sizeof(TYPE));
     sieve_state->limit=limit;
     return sieve_state;
@@ -56,13 +80,6 @@ static inline unsigned int index_to_natural(unsigned int bit_index) {
 static inline unsigned int natural_to_index(unsigned int natural) {
     return (natural - 1) >> 1 ;
 }
-
-#define NORMAL      1
-#define STRIPED     2
-#define STRIPED_2   3
-#define STRIPED_3   4
-#define MODULO      5
-#define STORE_MODE NORMAL
 
 #if STORE_MODE == STRIPED
 static inline unsigned int index_to_word(unsigned int bit_index) {
@@ -92,7 +109,7 @@ static inline unsigned int index_to_word(unsigned int bit_index) {
 static inline unsigned int index_to_offset(unsigned int bit_index) {
     return (bit_index / NR_OF_WORDS);
 }
-#else
+#else // NORMAL
 
 static inline unsigned int index_to_word(unsigned int bit_index) {
     return bit_index >> SHIFT;
@@ -205,6 +222,9 @@ void run_sieve(struct sieve_state *sieve_state) {
     while (factor_index < q_index) {
         if ( getBit(sieve_state,factor_index) == ON ) {
             prime = (factor_index << 1U)+1U;
+            #if CROSSOUT_MODE == BY_4
+            bit_cross_out_by_4(sieve_state,prime);
+            #elif CROSSOUT_MODE == BACK_TO_FRONT_BY_4
             if (forward) {
                 bit_cross_out_by_4(sieve_state,prime);
                 forward = 0;  
@@ -212,6 +232,17 @@ void run_sieve(struct sieve_state *sieve_state) {
                 bit_cross_out_by_4_reverse(sieve_state,prime);
                 forward = 1;
             }
+            #elif CROSSOUT_MODE == BACK_TO_FRONT
+            if (forward) {
+                bit_cross_out_simple(sieve_state,prime);
+                forward = 0;  
+            } else {
+                bit_cross_out_reverse(sieve_state,prime);
+                forward = 1;
+            }
+            #else
+            bit_cross_out_simple(sieve_state,prime);
+            #endif
         }
         factor_index++;
     }
@@ -306,7 +337,7 @@ void print_results (
         );
 
 	printf("\n");
-	printf("fvbakel_Cbit7;%d;%f;1;algorithm=base,faithful=yes,bits=%lu\n", passes, duration,1LU);
+	printf("fvbakel_Cbit7_%s___%s;%d;%f;1;algorithm=base,faithful=yes,bits=%lu\n", STORE_MODES[STORE_MODE],CROSSOUT_MODES[CROSSOUT_MODE] ,passes, duration,1LU);
 }
 
 double run_timed_sieve(  

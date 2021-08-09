@@ -344,11 +344,9 @@ int main(int argc, char **argv) {
     
     double              speed;
 
-    while(1) {
-        set_word_block_size(limit);
-        printf("using blocksize=%u\n",BLOCK_SIZE);
-        speed = run_timed_sieve(limit,maxtime,show_result,1);
-    }
+    set_word_block_size(limit);
+    printf("using blocksize=%u\n",BLOCK_SIZE);
+    speed = run_timed_sieve(limit,maxtime,show_result,1);
 
     return 0;
 }

@@ -363,10 +363,10 @@ int main(int argc, char **argv) {
 
     fill_cache(limit);
 
-    while(1) {
-        set_word_block_size(limit);
-        speed = run_timed_sieve(limit,maxtime,show_result,1);
-    }
+
+    set_word_block_size(limit);
+    speed = run_timed_sieve(limit,maxtime,show_result,1);
+
 
     return 0;
 }

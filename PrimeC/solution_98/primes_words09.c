@@ -460,11 +460,9 @@ int main(int argc, char **argv) {
     
     double              speed;
 
-    while(1) {
-        set_word_block_size(limit);
+    set_word_block_size(limit);
 
-        speed = run_timed_sieve(limit,maxtime,show_result,1);
-    }
+    speed = run_timed_sieve(limit,maxtime,show_result,1);
 
     return 0;
 }
