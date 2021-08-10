@@ -33,6 +33,8 @@ const char* CROSSOUT_MODES[] = {"NORMAL","BY_4","BACK_TO_FRONT_BY_4","BACK_TO_FR
     #define CROSSOUT_MODE BY_4
 #endif
 
+
+
 // the const below is to reduce the multiplications
 const unsigned int BITS_IN_WORD=8*sizeof(TYPE);
 
@@ -86,6 +88,29 @@ void fill_cache(unsigned int limit) {
 
 #if STORE_MODE == STRIPED_3
 unsigned int NR_OF_WORDS;
+#endif
+
+#ifdef RECORD
+union
+{
+    unsigned int unsigned_int;
+    unsigned char bytes[4];
+} conv;
+unsigned int nr_of_files = 0;
+void dump_sieve (struct sieve_state *sieve_state) {
+    FILE *write_ptr;
+    char   file_name[256] ;
+
+    sprintf(file_name,"/tmp/sieve_%u.bin",nr_of_files);
+    write_ptr = fopen(file_name,"wb");
+    for (unsigned int i = 0; i <= sieve_state->nr_of_words; i++) {
+        conv.unsigned_int = sieve_state->bit_array[i];
+        fwrite(conv.bytes,sizeof(conv.bytes),1,write_ptr);
+    }
+    fclose(write_ptr);
+
+    nr_of_files++;
+}
 #endif
 
 static inline struct sieve_state *create_sieve(unsigned int limit) {
@@ -158,7 +183,18 @@ static inline unsigned int index_to_offset(unsigned int bit_index) {
 }
 #endif
 
+#ifdef RECORD
+unsigned int frame_counter = 0;
+#endif
+
 static inline void setBit(struct sieve_state *sieve_state,unsigned int index) {
+    #ifdef RECORD
+    frame_counter++;
+    if (frame_counter > 5000) {
+        frame_counter =0;
+        dump_sieve(sieve_state);
+    }
+    #endif
     sieve_state->bit_array[index_to_word(index)] |=  OFFSET_MASK[index_to_offset(index)];
 }
 
@@ -447,18 +483,28 @@ double run_timed_sieve(
 
     while (1) {
         sieve_state=create_sieve(limit);
+        #ifdef RECORD
+        dump_sieve(sieve_state);
+        #endif
         run_sieve(sieve_state);
         passes++;
         clock_gettime(CLOCK_MONOTONIC,&now);
         duration=now.tv_sec+now.tv_nsec*1e-9-start.tv_sec-start.tv_nsec*1e-9;
 
-        if (duration>maxtime) {
+        
+        if (duration>maxtime 
+            #ifdef RECORD
+             || passes == 1
+            #endif
+        ) {    
             if (print_sumary) {
+                #ifdef RECORD
+                dump_sieve(sieve_state);
+                #endif
                 print_results ( sieve_state, show_result, duration, passes);
             }
             break;
         }
-
         delete_sieve(sieve_state);
     }
 
