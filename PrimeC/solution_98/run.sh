@@ -5,7 +5,7 @@
 
 x=primes_bit7
 for store_mode in 0 1 2 3 4; do
-    for crossout_mode in 0 1 2 3 4; do
+    for crossout_mode in 0 1 2 3; do
         ./${x}_${store_mode}___${crossout_mode}
     done
 done
