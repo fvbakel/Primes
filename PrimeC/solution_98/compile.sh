@@ -8,7 +8,7 @@ CC="gcc -Ofast -march=native -mtune=native -funroll-all-loops"
 
 x=primes_bit7
 for store_mode in 0 1 2 3 4; do
-    for crossout_mode in 0 1 2 3; do
+    for crossout_mode in 0 1 2 3 4; do
         $CC -DSTORE_MODE=${store_mode} -DCROSSOUT_MODE=${crossout_mode} -o ${x}_${store_mode}___${crossout_mode} $x.c -lm
     done
 done

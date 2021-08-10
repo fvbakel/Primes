@@ -27,7 +27,8 @@ const char* STORE_MODES[] = {"NORMAL","STRIPED","STRIPED_2","STRIPED_3","MODULO"
 #define BY_4 1
 #define BACK_TO_FRONT_BY_4 2
 #define BACK_TO_FRONT 3
-const char* CROSSOUT_MODES[] = {"NORMAL","BY_4","BACK_TO_FRONT_BY_4","BACK_TO_FRONT"};
+#define BACK_TO_FRONT_BY_4_CACHED 4
+const char* CROSSOUT_MODES[] = {"NORMAL","BY_4","BACK_TO_FRONT_BY_4","BACK_TO_FRONT","BACK_TO_FRONT_BY_4_CACHED"};
 #ifndef CROSSOUT_MODE
     #define CROSSOUT_MODE BY_4
 #endif
@@ -45,11 +46,46 @@ struct sieve_state {
     unsigned int nr_of_words;
 };
 
+struct cache_elm {
+    unsigned int prime;
+    unsigned int prime_sqr_index;
+    unsigned int prime_2;
+    unsigned int prime_3;
+    unsigned int prime_4;
+    unsigned int save_len;
+    unsigned int last_prime_index;
+};
+
+struct cache_elm* CACHE;
+
+void fill_cache(unsigned int limit) {
+    unsigned int q=(unsigned int)sqrt(limit);
+    unsigned int q_index=q/2;
+    CACHE = (struct cache_elm*) malloc((q_index + 1 )*sizeof(struct cache_elm));
+    for (unsigned int odd_natural = 3; odd_natural <= q; odd_natural += 2) {
+        unsigned int index = odd_natural / 2;
+        CACHE[index].prime = odd_natural;
+        CACHE[index].prime_sqr_index = (odd_natural * odd_natural) / 2;
+        CACHE[index].prime_2 = odd_natural * 2;
+        CACHE[index].prime_3 = odd_natural * 3;
+        CACHE[index].prime_4 = odd_natural * 4;
+        CACHE[index].save_len = 0;
+        if ((limit / 2) > CACHE[index].prime_3) {
+            CACHE[index].save_len = (limit / 2) - CACHE[index].prime_3;
+        }
+        CACHE[index].last_prime_index = limit - ( limit % CACHE[index].prime);
+        if ( !(CACHE[index].last_prime_index & 1) == 1) {
+            CACHE[index].last_prime_index -= CACHE[index].prime;
+        }
+        CACHE[index].last_prime_index = CACHE[index].last_prime_index / 2;
+    }
+}
+
 #if STORE_MODE == STRIPED_3
 unsigned int NR_OF_WORDS;
 #endif
 
-static inline struct sieve_state *create_sieve(int limit) {
+static inline struct sieve_state *create_sieve(unsigned int limit) {
     struct sieve_state *sieve_state=malloc(sizeof *sieve_state);
     sieve_state->size = limit >>1;
     sieve_state->nr_of_words=(limit >> MEMSHIFT) + 5;
@@ -129,8 +165,9 @@ static inline TYPE getBit (struct sieve_state *sieve_state,unsigned int index) {
 
 static inline void bit_cross_out_simple(
     struct sieve_state *sieve_state,
-    unsigned int prime
+    unsigned int prime_index
 ) {
+    unsigned int prime = (prime_index << 1U)+1U;
     unsigned int start_index = ((prime * prime)>>1U);
     for ( unsigned int i = start_index; i <sieve_state->size ; i +=prime ) {
         setBit(sieve_state,i);
@@ -139,8 +176,9 @@ static inline void bit_cross_out_simple(
 
 static inline void bit_cross_out_reverse(
     struct sieve_state *sieve_state,
-    unsigned int prime
+    unsigned int prime_index
 ) {
+    unsigned int prime = (prime_index << 1U)+1U;
     unsigned int end_index = ((prime * prime)>>1U);
     unsigned int last_prime= sieve_state->limit - (sieve_state->limit % prime);
     if ( !(last_prime & 1) == 1) {
@@ -155,8 +193,9 @@ static inline void bit_cross_out_reverse(
 
 static inline void bit_cross_out_by_4(
     struct sieve_state *sieve_state,
-    unsigned int prime
+    unsigned int prime_index
 ) {
+    unsigned int prime = (prime_index << 1U)+1U;
     unsigned int current_index = ((prime * prime)>>1U);
     unsigned int prime_2 = prime * 2;
     unsigned int prime_3 = prime * 3;
@@ -183,8 +222,9 @@ static inline void bit_cross_out_by_4(
 
 static inline void bit_cross_out_by_4_reverse(
     struct sieve_state *sieve_state,
-    unsigned int prime
+    unsigned int prime_index
 ) {
+    unsigned int prime = (prime_index << 1U)+1U;
     unsigned int prime_2 = prime * 2;
     unsigned int prime_3 = prime * 3;
     unsigned int prime_4 = prime * 4;
@@ -194,7 +234,7 @@ static inline void bit_cross_out_by_4_reverse(
     if ( !(last_prime & 1) == 1) {
         last_prime -= prime;
     }
-    unsigned int current_index = last_prime /2;
+    unsigned int current_index = last_prime / 2;
 
     unsigned int save_index = end_index + prime_3;
     while (current_index > save_index) {
@@ -211,37 +251,86 @@ static inline void bit_cross_out_by_4_reverse(
     }
 }
 
+static inline void bit_cross_out_by_4_cached(
+    struct sieve_state *sieve_state,
+    unsigned int prime_index
+) {
+    struct cache_elm cur_elm = CACHE[prime_index];
+    unsigned int current_index = cur_elm.prime_sqr_index;
+
+    while (current_index < cur_elm.save_len) {
+        setBit(sieve_state,current_index);
+        setBit(sieve_state,current_index + cur_elm.prime);
+        setBit(sieve_state,current_index + cur_elm.prime_2);
+        setBit(sieve_state,current_index + cur_elm.prime_3);
+        current_index += cur_elm.prime_4;
+    }
+
+    while (current_index <sieve_state->size) {
+        setBit(sieve_state,current_index);
+        current_index += cur_elm.prime;
+    }
+}
+
+static inline void bit_cross_out_by_4_reverse_cached(
+    struct sieve_state *sieve_state,
+    unsigned int prime_index
+) {
+    struct cache_elm cur_elm = CACHE[prime_index];
+    unsigned int current_index = cur_elm.last_prime_index;
+
+    unsigned int save_index = cur_elm.prime_sqr_index + cur_elm.prime_3;
+    while (current_index > save_index) {
+        setBit(sieve_state,current_index);
+        setBit(sieve_state,current_index - cur_elm.prime);
+        setBit(sieve_state,current_index - cur_elm.prime_2);
+        setBit(sieve_state,current_index - cur_elm.prime_3);
+        current_index -= cur_elm.prime_4;
+    }
+
+    while (current_index >= cur_elm.prime_sqr_index) {
+        setBit(sieve_state,current_index);
+        current_index -= cur_elm.prime;
+    }
+}
+
 
 void run_sieve(struct sieve_state *sieve_state) {
     unsigned int factor_index = 1U;
-    unsigned int prime;
     unsigned int q=(unsigned int)sqrt(sieve_state->limit);
     unsigned int q_index=q>>1U;
     int forward = 1;
     
     while (factor_index < q_index) {
         if ( getBit(sieve_state,factor_index) == ON ) {
-            prime = (factor_index << 1U)+1U;
             #if CROSSOUT_MODE == BY_4
-            bit_cross_out_by_4(sieve_state,prime);
+            bit_cross_out_by_4(sieve_state,factor_index);
             #elif CROSSOUT_MODE == BACK_TO_FRONT_BY_4
             if (forward) {
-                bit_cross_out_by_4(sieve_state,prime);
+                bit_cross_out_by_4(sieve_state,factor_index);
                 forward = 0;  
             } else {
-                bit_cross_out_by_4_reverse(sieve_state,prime);
+                bit_cross_out_by_4_reverse(sieve_state,factor_index);
+                forward = 1;
+            }
+            #elif CROSSOUT_MODE == BACK_TO_FRONT_BY_4_CACHED
+            if (forward) {
+                bit_cross_out_by_4_cached(sieve_state,factor_index);
+                forward = 0;  
+            } else {
+                bit_cross_out_by_4_reverse_cached(sieve_state,factor_index);
                 forward = 1;
             }
             #elif CROSSOUT_MODE == BACK_TO_FRONT
             if (forward) {
-                bit_cross_out_simple(sieve_state,prime);
+                bit_cross_out_simple(sieve_state,factor_index);
                 forward = 0;  
             } else {
-                bit_cross_out_reverse(sieve_state,prime);
+                bit_cross_out_reverse(sieve_state,factor_index);
                 forward = 1;
             }
             #else
-            bit_cross_out_simple(sieve_state,prime);
+            bit_cross_out_simple(sieve_state,factor_index);
             #endif
         }
         factor_index++;
@@ -381,7 +470,8 @@ int main(int argc, char **argv) {
     
     double              speed;
 
-//    set_word_block_size(limit);
+    fill_cache(limit);
+
     speed = run_timed_sieve(limit,maxtime,show_result,1);
 
     return 0;
