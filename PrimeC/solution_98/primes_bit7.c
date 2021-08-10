@@ -54,6 +54,7 @@ struct cache_elm {
     unsigned int prime_4;
     unsigned int save_len;
     unsigned int last_prime_index;
+    unsigned int save_index;
 };
 
 struct cache_elm* CACHE;
@@ -78,6 +79,8 @@ void fill_cache(unsigned int limit) {
             CACHE[index].last_prime_index -= CACHE[index].prime;
         }
         CACHE[index].last_prime_index = CACHE[index].last_prime_index / 2;
+
+        CACHE[index].save_index = CACHE[index].prime_sqr_index + CACHE[index].prime_3;
     }
 }
 
@@ -279,8 +282,7 @@ static inline void bit_cross_out_by_4_reverse_cached(
     struct cache_elm cur_elm = CACHE[prime_index];
     unsigned int current_index = cur_elm.last_prime_index;
 
-    unsigned int save_index = cur_elm.prime_sqr_index + cur_elm.prime_3;
-    while (current_index > save_index) {
+    while (current_index > cur_elm.save_index) {
         setBit(sieve_state,current_index);
         setBit(sieve_state,current_index - cur_elm.prime);
         setBit(sieve_state,current_index - cur_elm.prime_2);
