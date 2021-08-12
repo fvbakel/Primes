@@ -28,7 +28,9 @@ const char* STORE_MODES[] = {"NORMAL","STRIPED","STRIPED_2","STRIPED_3","MODULO"
 #define BACK_TO_FRONT_BY_4 2
 #define BACK_TO_FRONT 3
 #define BACK_TO_FRONT_BY_4_CACHED 4
-const char* CROSSOUT_MODES[] = {"NORMAL","BY_4","BACK_TO_FRONT_BY_4","BACK_TO_FRONT","BACK_TO_FRONT_BY_4_CACHED"};
+#define BACK_TO_FRONT_BY_16 5
+#define BACK_TO_FRONT_BY_8 6
+const char* CROSSOUT_MODES[] = {"NORMAL","BY_4","BACK_TO_FRONT_BY_4","BACK_TO_FRONT","BACK_TO_FRONT_BY_4_CACHED","BACK_TO_FRONT_BY_16","BACK_TO_FRONT_BY_8"};
 #ifndef CROSSOUT_MODE
     #define CROSSOUT_MODE BY_4
 #endif
@@ -290,6 +292,196 @@ static inline void bit_cross_out_by_4_reverse(
     }
 }
 
+#if CROSSOUT_MODE == BACK_TO_FRONT_BY_8
+static inline void bit_cross_out_by_8(
+    struct sieve_state *sieve_state,
+    unsigned int prime_index
+) {
+    unsigned int prime = (prime_index << 1U)+1U;
+    unsigned int current_index = ((prime * prime)>>1U);
+    unsigned int prime_2 = prime * 2;
+    unsigned int prime_3 = prime * 3;
+    unsigned int prime_4 = prime * 4;
+    unsigned int prime_5 = prime * 5;
+    unsigned int prime_6 = prime * 6;
+    unsigned int prime_7 = prime * 7;
+    unsigned int prime_8 = prime * 8;
+
+    unsigned int save_len = 0;
+    if (sieve_state->size > prime_7) {
+        save_len = sieve_state->size - prime_7;
+    }    
+
+    while (current_index < save_len) {
+        setBit(sieve_state,current_index);
+        setBit(sieve_state,current_index + prime);
+        setBit(sieve_state,current_index + prime_2);
+        setBit(sieve_state,current_index + prime_3);
+        setBit(sieve_state,current_index + prime_4);
+        setBit(sieve_state,current_index + prime_5);
+        setBit(sieve_state,current_index + prime_6);
+        setBit(sieve_state,current_index + prime_7);
+ 
+        current_index += prime_8;
+    }
+
+    while (current_index <sieve_state->size) {
+        setBit(sieve_state,current_index);
+        current_index += prime;
+    }
+}
+
+static inline void bit_cross_out_by_8_reverse(
+    struct sieve_state *sieve_state,
+    unsigned int prime_index
+) {
+    unsigned int prime = (prime_index << 1U)+1U;
+    unsigned int prime_2 = prime * 2;
+    unsigned int prime_3 = prime * 3;
+    unsigned int prime_4 = prime * 4;
+    unsigned int prime_5 = prime * 5;
+    unsigned int prime_6 = prime * 6;
+    unsigned int prime_7 = prime * 7;
+    unsigned int prime_8 = prime * 8;
+
+    unsigned int end_index = ((prime * prime)>>1U);
+    unsigned int last_prime= sieve_state->limit - (sieve_state->limit % prime);
+    if ( !(last_prime & 1) == 1) {
+        last_prime -= prime;
+    }
+    unsigned int current_index = last_prime / 2;
+
+    unsigned int save_index = end_index + prime_7;
+    while (current_index > save_index) {
+        setBit(sieve_state,current_index);
+        setBit(sieve_state,current_index - prime);
+        setBit(sieve_state,current_index - prime_2);
+        setBit(sieve_state,current_index - prime_3);
+        setBit(sieve_state,current_index - prime_4);
+        setBit(sieve_state,current_index - prime_5);
+        setBit(sieve_state,current_index - prime_6);
+        setBit(sieve_state,current_index - prime_7);
+        current_index -= prime_8;
+    }
+
+    while (current_index >= end_index) {
+        setBit(sieve_state,current_index);
+        current_index -= prime;
+    }
+}
+#endif
+
+#if CROSSOUT_MODE == BACK_TO_FRONT_BY_16
+static inline void bit_cross_out_by_16(
+    struct sieve_state *sieve_state,
+    unsigned int prime_index
+) {
+    unsigned int prime = (prime_index << 1U)+1U;
+    unsigned int current_index = ((prime * prime)>>1U);
+    unsigned int prime_2 = prime * 2;
+    unsigned int prime_3 = prime * 3;
+    unsigned int prime_4 = prime * 4;
+    unsigned int prime_5 = prime * 5;
+    unsigned int prime_6 = prime * 6;
+    unsigned int prime_7 = prime * 7;
+    unsigned int prime_8 = prime * 8;
+    unsigned int prime_9 = prime * 9;
+    unsigned int prime_10 = prime * 10;
+    unsigned int prime_11 = prime * 11;
+    unsigned int prime_12 = prime * 12;
+    unsigned int prime_13 = prime * 13;
+    unsigned int prime_14 = prime * 14;
+    unsigned int prime_15 = prime * 15;
+    unsigned int prime_16 = prime * 16;
+
+    unsigned int save_len = 0;
+    if (sieve_state->size > prime_15) {
+        save_len = sieve_state->size - prime_15;
+    }    
+
+    while (current_index < save_len) {
+        setBit(sieve_state,current_index);
+        setBit(sieve_state,current_index + prime);
+        setBit(sieve_state,current_index + prime_2);
+        setBit(sieve_state,current_index + prime_3);
+        setBit(sieve_state,current_index + prime_4);
+        setBit(sieve_state,current_index + prime_5);
+        setBit(sieve_state,current_index + prime_6);
+        setBit(sieve_state,current_index + prime_7);
+        setBit(sieve_state,current_index + prime_8);
+        setBit(sieve_state,current_index + prime_9);
+        setBit(sieve_state,current_index + prime_10);
+        setBit(sieve_state,current_index + prime_11);
+        setBit(sieve_state,current_index + prime_12);
+        setBit(sieve_state,current_index + prime_13);
+        setBit(sieve_state,current_index + prime_14);
+        setBit(sieve_state,current_index + prime_15);
+        current_index += prime_16;
+    }
+
+    while (current_index <sieve_state->size) {
+        setBit(sieve_state,current_index);
+        current_index += prime;
+    }
+}
+
+static inline void bit_cross_out_by_16_reverse(
+    struct sieve_state *sieve_state,
+    unsigned int prime_index
+) {
+    unsigned int prime = (prime_index << 1U)+1U;
+    unsigned int prime_2 = prime * 2;
+    unsigned int prime_3 = prime * 3;
+    unsigned int prime_4 = prime * 4;
+    unsigned int prime_5 = prime * 5;
+    unsigned int prime_6 = prime * 6;
+    unsigned int prime_7 = prime * 7;
+    unsigned int prime_8 = prime * 8;
+    unsigned int prime_9 = prime * 9;
+    unsigned int prime_10 = prime * 10;
+    unsigned int prime_11 = prime * 11;
+    unsigned int prime_12 = prime * 12;
+    unsigned int prime_13 = prime * 13;
+    unsigned int prime_14 = prime * 14;
+    unsigned int prime_15 = prime * 15;
+    unsigned int prime_16 = prime * 16;
+
+    unsigned int end_index = ((prime * prime)>>1U);
+    unsigned int last_prime= sieve_state->limit - (sieve_state->limit % prime);
+    if ( !(last_prime & 1) == 1) {
+        last_prime -= prime;
+    }
+    unsigned int current_index = last_prime / 2;
+
+    unsigned int save_index = end_index + prime_15;
+    while (current_index > save_index) {
+        setBit(sieve_state,current_index);
+        setBit(sieve_state,current_index - prime);
+        setBit(sieve_state,current_index - prime_2);
+        setBit(sieve_state,current_index - prime_3);
+        setBit(sieve_state,current_index - prime_4);
+        setBit(sieve_state,current_index - prime_5);
+        setBit(sieve_state,current_index - prime_6);
+        setBit(sieve_state,current_index - prime_7);
+        setBit(sieve_state,current_index - prime_8);
+        setBit(sieve_state,current_index - prime_9);
+        setBit(sieve_state,current_index - prime_10);
+        setBit(sieve_state,current_index - prime_11);
+        setBit(sieve_state,current_index - prime_12);
+        setBit(sieve_state,current_index - prime_13);
+        setBit(sieve_state,current_index - prime_14);
+        setBit(sieve_state,current_index - prime_15);
+        current_index -= prime_16;
+    }
+
+    while (current_index >= end_index) {
+        setBit(sieve_state,current_index);
+        current_index -= prime;
+    }
+}
+#endif
+
+#if CROSSOUT_MODE == BACK_TO_FRONT_BY_4_CACHED
 static inline void bit_cross_out_by_4_cached(
     struct sieve_state *sieve_state,
     unsigned int prime_index
@@ -331,7 +523,7 @@ static inline void bit_cross_out_by_4_reverse_cached(
         current_index -= cur_elm.prime;
     }
 }
-
+#endif
 
 void run_sieve(struct sieve_state *sieve_state) {
     unsigned int factor_index = 1U;
@@ -349,6 +541,14 @@ void run_sieve(struct sieve_state *sieve_state) {
                 forward = 0;  
             } else {
                 bit_cross_out_by_4_reverse(sieve_state,factor_index);
+                forward = 1;
+            }
+            #elif CROSSOUT_MODE == BACK_TO_FRONT_BY_16
+            if (forward) {
+                bit_cross_out_by_16(sieve_state,factor_index);
+                forward = 0;  
+            } else {
+                bit_cross_out_by_16_reverse(sieve_state,factor_index);
                 forward = 1;
             }
             #elif CROSSOUT_MODE == BACK_TO_FRONT_BY_4_CACHED
